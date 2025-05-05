@@ -2,3 +2,22 @@
   float: left;
   margin: 20px 20px 20px 20px;
 }
+.p1 {
+  font-family: Arial, Helvetica, Sans-Serif;
+}
+
+h1{
+  font-family: Arial, Helvetica, Sans-Serif;
+}
+
+h2{
+  font-family: Arial, Helvetica, Sans-Serif;
+}
+
+h3{
+  font-family: Arial, Helvetica, Sans-Serif;
+}
+.limit{
+  width: 500px;
+  word-wrap: break-word;
+}
