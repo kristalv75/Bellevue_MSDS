@@ -1,4 +1,4 @@
-#  Predicting One's Income Based
+#  Predicting One's Income 
 
 Using 1994 US Census data to predict whether an individual will make >50k annually.
 
