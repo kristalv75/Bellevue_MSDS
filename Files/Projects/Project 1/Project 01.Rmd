@@ -1,0 +1,226 @@
+---
+title: "Final Project - Step 3"
+author: "Kristal Lee"
+date: "2024-05-28"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# Term Project
+
+## 1. Introduction
+
+In the city of Seattle, crime and policing can be a hot topic at times. Media 
+can conflate or misrepresent crime rates in the area. As someone who is married 
+to a law enforcement officer in Seattle and as someone who is a transplant to the area, 
+it would be helpful to know more about the crime in Seattle. What gets reported 
+on different media outlets some times paint contradicting pictures of crime and policing in 
+Seattle. Personally, I would also like to see a more objective analysis, as I 
+may have my own bias along with what I am being told second-hand about crimes in Seattle from my 
+husband.
+
+The main purpose of this research paper is to provide a more objective analysis on crime rates in Seattle based off of
+data publicly provided by Seattle Police Department. 
+
+## 2. Research Questions
+Research questions to explore:  
+
+- Has the amount of crimes changed over the last few year?
+  - If so, how by how much?  
+  - Within those crimes, has the trend in types of crimes changed?  
+- Are there trends or change in trends with the various crimes among different 
+areas within Seattle (Precincts/Sectors)?  
+- How does use of force and officer involve shootings (OIS) play into this?  
+  - Are there more or less over the past few years?  
+- What variables that are reported for arrests have greater impact?  
+  - Similarly, for any use of force incidents.   
+
+## 3. Approach
+
+Firstly, I would look to see what years overlap within the data sets. I would 
+want to shorten the amount of rows because some of the data sets go back over a 
+decade with over a million rows. It would make for quicker loading and 
+manipulations. Once I fully identify what columns I plan on using, I would also 
+remove columns not being utilized. I would use the incident number to connect 
+across different data sets for additional information such as if there was an 
+OIS or use of force. This would be the main column to join sets. I would also use demographic informations 
+to find if there are any correlations with arrests or those who commit crimes.
+
+I would use the combined sets to conduct different types of analysis about the proposed 
+research questions. This will be in the form of statistics, tables, and visualizations. 
+
+### 3.1 How Approach Addresses the Problem
+
+The approach will help address the problem by using the direct data from Seattle Police Department (SPD) 
+to counter or further support what media has claimed regarding crime in Seattle. 
+
+## 4. Data
+
+All of the data sets that could be used for the analysis are publicly provided on the city of Seattle's government website 
+where the data is from SPD. All sets are provided as links to the original site for download. 
+Some of the columns that allow for combining the data include incident numbers, location (precincts and sectors), and report numbers for some. 
+
+- [SPD Crime Data: 2008-Present](https://data.seattle.gov/Public-Safety/SPD-Crime-Data-2008-Present/tazs-3rd5/about_data). 
+- [SPD Arrest Data](https://data.seattle.gov/Public-Safety/SPD-Arrest-Data/9bjs-7a7w/about_data). 
+- [SPD Officer Involved Shooting (OIS) Data](https://data.seattle.gov/Public-Safety/SPD-Officer-Involved-Shooting-OIS-Data/mg5r-efcm/about_data). 
+- [Use of Force](https://data.seattle.gov/Public-Safety/Use-Of-Force/ppi5-g2bj/about_data)
+
+```{r libraries}
+library(dplyr)
+library(purrr)
+library(magrittr)
+library(ggplot2)
+```
+
+```{r load data}
+crimedata_loc <- "/Users/kristallee/Documents/Spring_2024/520-Project/SPD_Crime_Data__2008-Present_20240510.csv"
+UOF_loc <- "/Users/kristallee/Documents/Spring_2024/520-Project/Use_Of_Force_20240510.csv"
+OIS_loc <- "/Users/kristallee/Documents/Spring_2024/520-Project/SPD_Officer_Involved_Shooting__OIS__Data_20240510.csv"
+
+crimedata <- read.csv(crimedata_loc)
+UOFdata <- read.csv(UOF_loc)
+OISdata <- read.csv(OIS_loc)
+
+```
+
+```{r data samples}
+head(crimedata, n=5)
+head(UOFdata, n=5)
+head(OISdata, n=5)
+```
+
+```{r years in df}
+# add year column from date column for all datasets
+crimedata$Year <- format(as.Date(crimedata$Offense.Start.DateTime, 
+                                 format="%m/%d/%Y"), "%Y")
+UOFdata$Year <- format(as.Date(UOFdata$Occured_date_time, 
+                               format="%m/%d/%Y"), "%Y")
+OISdata$Year <- format(as.Date(OISdata$Date...Time, format="%m/%d/%Y"), "%Y")
+
+
+```
+```{r crime counts by year, all}
+# bar graphs for each dataset for all years prior to current with suffient
+# amount of data
+allcrimecount_year<-crimedata %>% dplyr::count(Year)
+allcrimecount_year <- rename(allcrimecount_year, count = n)
+allcrimecount_year <- filter(allcrimecount_year, Year>=2009 & Year<2024)
+ggplot(allcrimecount_year, aes(x=Year, y=count)) + 
+                          geom_bar(stat="identity") + ggtitle("Crime Reported by Year")
+allUOFcount_year<-UOFdata %>% dplyr::count(Year)
+allUOFcount_year <- rename(allUOFcount_year, count = n)
+allUOFcount_year <- filter(allUOFcount_year, Year<2024)
+ggplot(allUOFcount_year, aes(x=Year, y=count)) + 
+                          geom_bar(stat="identity") + ggtitle("UOF by Year")
+allOIScount_year<-OISdata %>% dplyr::count(Year)
+allOIScount_year <- rename(allOIScount_year, count = n)
+allOIScount_year <- filter(allOIScount_year, Year<2024)
+ggplot(allOIScount_year, aes(x=Year, y=count)) + 
+                          geom_bar(stat="identity") + ggtitle("OIS by Year")
+                        
+```
+
+```{r unique years}
+# find most recent years that overlap
+crimeyears <- unique(sort(crimedata$Year, decreasing=TRUE))
+UOFyears <- unique(sort(UOFdata$Year, decreasing=TRUE))
+OISyears <- unique(sort(OISdata$Year, decreasing=TRUE))
+
+crimeyears
+UOFyears
+OISyears
+
+# Most recent overlapping 4 year period, 2019-2022
+```
+
+```{r overlapping years datasets}
+# create shortened datasets for data years that overlap (2018-2022)
+newcrimedata <- crimedata %>% filter(Year>= 2019 & Year <= 2022)
+newUOFdata <- UOFdata %>% filter(Year>= 2019 & Year <= 2022)
+newOISdata <- OISdata %>% filter(Year>= 2019 & Year <= 2022)
+
+# check the unique years 
+unique(sort(newcrimedata$Year))
+unique(sort(newUOFdata$Year))
+unique(sort(newOISdata$Year))
+```
+
+```{r months}
+# add months column from date column for possibly monthly breakdown
+newcrimedata$Month <- format(as.Date(newcrimedata$Offense.Start.DateTime, 
+                                 format="%m/%d/%Y"), "%m")
+newOISdata$Month <- format(as.Date(newOISdata$Date...Time, 
+                                   format="%m/%d/%Y"), "%m")
+newUOFdata$Month <- format(as.Date(newUOFdata$Occured_date_time, 
+                               format="%m/%d/%Y"), "%m")
+```
+
+
+```{r counts by year}
+# create tables and plots for number of crimes 
+countscrimes <-table(newcrimedata$Year)
+barplot(countscrimes, main="Crimes by Year", xlab="years")
+countsUOF <-table(newUOFdata$Year)
+barplot(countsUOF, main="UOF by Year", xlab="years")
+countsOIS <-table(newOISdata$Year)
+barplot(countsOIS, main="OIS by Year", xlab="years")
+
+```
+
+```{r top ten groups}
+# unique(newcrimedata$Offense.Parent.Group)
+offenseCount<-newcrimedata %>% dplyr::count(Offense.Parent.Group)
+offenseCount <- rename(offenseCount, count = n)
+top_10 <- slice_max(offenseCount, order_by = count, n=10)
+```
+
+```{r top ten df}
+top_10_crime<- newcrimedata %>% 
+  filter(Offense.Parent.Group==top_10$Offense.Parent.Group)
+test <- table(top_10_crime$Offense.Parent.Group, top_10_crime$Year)
+top10.df <- data.frame(test)
+colnames(top10.df) <- c('Offense.Parent.Group', 'Year', 'Count')
+top10.df
+```
+
+```{r plot top 10}
+top10_plot <- ggplot(top10.df, aes(fill=Offense.Parent.Group, y=Count, x=Year)) + geom_bar(position="fill", stat="identity")
+print(top10_plot + labs(title="Ratio of Top 10 Offense Groups by Year", y="Percentage", x="Year"))
+```
+```{r plot top precints}
+precinctCount <-newcrimedata %>% dplyr::count(Precinct)
+precinctCount <- rename(precinctCount, count = n)
+precinctCount
+
+```
+
+
+```{r plot top precints2}
+test2 <- newcrimedata %>% filter(Precinct != "OOJ") %>% group_by(Precinct) %>% 
+                                                 filter(Offense.Parent.Group == top_10$Offense.Parent.Group)
+test3 <- table(test2$Offense.Parent.Group, test2$Precinct)
+precTop10.df <- data.frame(test3)
+colnames(precTop10.df) <- c('Offense.Parent.Group', 'Precinct', 'Count')
+```
+
+```{r plot top precints3}
+precplot <- ggplot(precTop10.df, aes(x=Precinct, y=Count, fill=Precinct)) + geom_bar(stat="identity") + facet_wrap(~Offense.Parent.Group) + theme(axis.title.x=element_blank(), axis.text.x=element_blank(),axis.ticks.x=element_blank())
+print(precplot + labs(title="Top Ten Reported Crimes by Precinct (2019-2022)", y="Count"))
+
+```
+```{r clean UOF}
+exclude_p <- list("0", "-" ,"OOJ")
+newUOFdata <- newUOFdata %>% filter(! Precinct %in% exclude_p)
+newUOFdata <- newUOFdata %>%
+  mutate(Precinct = recode(Precinct, East = 'E', North = 'N', South = 'S', West = 'W', Southwest = 'SW'))
+unique(newUOFdata$Precinct)
+```
+```{r UOF plot}
+countsUOF_bypre <-table(newUOFdata$Precinct)
+barplot(countsUOF_bypre, main="UOF by Precinct", xlab="Precincts")
+
+```
+
+
